@@ -1,113 +1,89 @@
 import { z } from "zod";
 
-// Base timestamp fields that many tables share
-const TimestampFields = {
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
-};
+// Basic language and role enums
+export const LanguageCode = z.enum(["es", "ja", "en"]);
+export const Role = z.enum(["assistant", "user"]);
 
-// User schemas
-export const UserSchema = z.object({
-  id: z.string(),
-  ...TimestampFields,
-});
-
-export const UserEmailSchema = z.object({
-  user_id: z.string(),
-  email: z.string().email(),
-  verified: z.boolean(),
-  ...TimestampFields,
-});
-
-export const UserProfileSchema = z.object({
-  user_id: z.string(),
-  display_name: z.string().nullable(),
-  full_name: z.string().nullable(),
-  bio: z.string().nullable(),
-  ...TimestampFields,
-});
-
-export const InsertUserSchema = z.object({
-  id: z.string(),
-});
-
-export const InsertUserEmailSchema = z.object({
-  user_id: z.string(),
-  email: z.string().email(),
-  verified: z.boolean().default(false),
-});
-
-export const InsertUserProfileSchema = z.object({
-  user_id: z.string(),
-  display_name: z.string().nullable(),
-  full_name: z.string().nullable(),
-  bio: z.string().nullable(),
-});
-
-// Message schemas
-export const MessageRole = z.enum(["user", "assistant"]);
-export const MessageType = z.enum(["text", "recipe", "image", "file"]);
-export const IntentType = z.enum([
-  "suggest_ideas",
-  "adjust_recipe",
-  "ask_recipe_question",
-  "process_receipt_for_meal_plan",
-  "process_ingredients_image",
-]);
-
-export const MessageSchema = z.object({
-  id: z.string(),
-  user_id: z.string(),
-  parent_id: z.string().nullable(),
+// Message schema for conversation history
+export const Message = z.object({
+  role: Role,
   content: z.string(),
-  role: MessageRole,
-  type: MessageType,
-  intent_type: IntentType.nullable(),
-  created_at: z.string().datetime(),
+  timestamp: z.date().optional(),
+  id: z.string().optional(),
 });
 
-export const InsertMessageSchema = MessageSchema.omit({
-  created_at: true,
+// Conversation history schema
+export const ConversationHistory = z.array(Message);
+
+// Scenario Generator Input/Output
+export const ScenarioGeneratorInput = z.object({
+  userIntent: z.string(),
+  targetLanguage: LanguageCode,
 });
 
-// Attachment schemas
-export const FileType = z.enum(["image", "pdf", "document"]);
+export const ScenarioGeneratorOutput = z.object({
+  firstMessage: z.string(),
+});
 
-export const AttachmentSchema = z.object({
+// Response Generator Input/Output
+export const GenerateResponseInput = z.object({
+  transcribedText: z.string(),
+  conversationHistory: ConversationHistory,
+  targetLanguage: LanguageCode,
+});
+
+export const GenerateResponseOutput = z.object({
+  nextResponse: z.string(),
+});
+
+// User Session/State
+export const UserState = z.object({
   id: z.string(),
-  user_id: z.string(),
-  message_id: z.string(),
-  file_path: z.string(),
-  file_name: z.string(),
-  file_type: FileType,
-  mime_type: z.string(),
-  size_bytes: z.number(),
-  metadata: z.string().nullable(), // JSON string
-  created_at: z.string().datetime(),
+  currentLanguage: LanguageCode,
+  activeConversationId: z.string().optional(),
 });
 
-export const InsertAttachmentSchema = AttachmentSchema.omit({
-  created_at: true,
+// Conversation State
+export const ConversationState = z.object({
+  id: z.string(),
+  userId: z.string(),
+  targetLanguage: LanguageCode,
+  scenario: z.string(),
+  history: ConversationHistory,
+  startedAt: z.date(),
+  lastMessageAt: z.date().optional(),
+  status: z.enum(["active", "completed"]),
 });
 
-// Intent-specific schemas
-export const AdjustRecipeSchema = z.object({
-  message_id: z.string(),
-  recipe_id: z.string(),
+// Speech-to-Text Result
+export const SpeechToTextResult = z.object({
+  transcribedText: z.string(),
+  language: LanguageCode.optional(),
 });
 
-export const AskRecipeQuestionSchema = z.object({
-  message_id: z.string(),
-  recipe_id: z.string(),
+// Text-to-Speech Request
+export const TextToSpeechRequest = z.object({
+  text: z.string(),
+  language: LanguageCode,
 });
 
-export const ProcessReceiptSchema = z.object({
-  message_id: z.string(),
-  attachment_id: z.string(),
+// Error Schema
+export const ApiError = z.object({
+  code: z.string(),
+  message: z.string(),
 });
 
-export const ProcessIngredientsImageSchema = z.object({
-  message_id: z.string(),
-  attachment_id: z.string(),
-  detected_ingredients: z.string(), // JSON string
-});
+// Types derived from schemas
+export type LanguageCode = z.infer<typeof LanguageCode>;
+export type Role = z.infer<typeof Role>;
+export type Message = z.infer<typeof Message>;
+export type ConversationHistory = z.infer<typeof ConversationHistory>;
+export type ScenarioGeneratorInput = z.infer<typeof ScenarioGeneratorInput>;
+export type ScenarioGeneratorOutput = z.infer<typeof ScenarioGeneratorOutput>;
+export type GenerateResponseInput = z.infer<typeof GenerateResponseInput>;
+export type GenerateResponseOutput = z.infer<typeof GenerateResponseOutput>;
+export type UserState = z.infer<typeof UserState>;
+export type ConversationState = z.infer<typeof ConversationState>;
+export type SpeechToTextResult = z.infer<typeof SpeechToTextResult>;
+export type TextToSpeechRequest = z.infer<typeof TextToSpeechRequest>;
+export type ApiError = z.infer<typeof ApiError>;

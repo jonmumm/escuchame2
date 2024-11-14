@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant User
+    participant System
+    participant STT as Speech-to-Text
+    participant ScenGen as LLM:ScenarioGenerator
+    participant Response as LLM:GenerateResponse
+    
+    Note over System,ScenGen: Start Conversation
+    System->>ScenGen: userIntent: "ordering coffee"<br/>targetLanguage: "es"
+    ScenGen->>System: firstMessage: "¡Hola!<br/>Bienvenido a Café Madrid.<br/>¿Qué te gustaría tomar?"
+    System->>User: Play audio: "¡Hola! Bienvenido..."
+
+    Note over User,Response: Exchange 1
+    User->>System: Hold button, speak Spanish
+    System->>STT: Raw audio
+    STT->>System: "Hola, quiero un café<br/>con leche, por favor"
+    System->>Response: {<br/>transcribedText,<br/>history: [<br/>{assistant: "¡Hola! Bienvenido..."},<br/>{user: "Hola, quiero un café..."}<br/>],<br/>targetLanguage: "es"<br/>}
+    Response->>System: "¿Lo prefieres caliente o frío?<br/>También tenemos chocolate y<br/>canela si te gustaría añadir algo."
+    System->>User: Play audio response
+
+    Note over User,Response: Exchange 2
+    User->>System: Hold button, speak Spanish
+    System->>STT: Raw audio
+    STT->>System: "Caliente, por favor.<br/>¿Tienen leche de almendra?"
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges...],<br/>targetLanguage: "es"<br/>}
+    Response->>System: "Sí, tenemos leche de almendra.<br/>¿Prefieres el café suave o fuerte?"
+    System->>User: Play audio response
+
+    Note over User,Response: Exchange 3
+    User->>System: Hold button, speak Spanish
+    System->>STT: Raw audio
+    STT->>System: "Fuerte, por favor.<br/>Y también una galleta."
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges...],<br/>targetLanguage: "es"<br/>}
+    Response->>System: "Perfecto. Tenemos galletas<br/>de chocolate y de avena.<br/>¿Cuál prefieres?"
+    System->>User: Play audio response
+
+    Note over User,Response: Conversation continues naturally...

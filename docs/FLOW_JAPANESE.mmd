@@ -1,0 +1,45 @@
+sequenceDiagram
+    participant User
+    participant System
+    participant STT as Speech-to-Text
+    participant ScenGen as LLM:ScenarioGenerator
+    participant Response as LLM:GenerateResponse
+    
+    Note over System,ScenGen: Start Tech Conversation
+    System->>ScenGen: userIntent: "discuss AI startups in Japan"<br/>targetLanguage: "ja"
+    ScenGen->>System: firstMessage: "スタートアップ業界に<br/>ついて話しましょう。最近のAI分野で<br/>特に注目されている領域は<br/>ありますか？"
+    System->>User: Play audio
+
+    Note over User,Response: Exchange 1
+    User->>System: Hold button, speak Japanese
+    System->>STT: Raw audio
+    STT->>System: "はい、私の会社では生成AIの<br/>応用に焦点を当てています。<br/>特に自然言語処理と画像生成の<br/>組み合わせが面白いと考えています。"
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges],<br/>targetLanguage: "ja"<br/>}
+    Response->>System: "なるほど、興味深いですね。<br/>マルチモーダルAIの開発には<br/>どのようなアプローチを<br/>取られているんですか？"
+    System->>User: Play audio response
+
+    Note over User,Response: Exchange 2
+    User->>System: Hold button, speak Japanese
+    System->>STT: Raw audio
+    STT->>System: "現在はTransformerベースの<br/>アーキテクチャを採用していて、<br/>大規模言語モデルと画像生成モデルの<br/>統合を進めています。"
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges],<br/>targetLanguage: "ja"<br/>}
+    Response->>System: "それは素晴らしいですね。<br/>計算リソースの最適化については<br/>どのような工夫をされていますか？<br/>最近はクラウドとオンプレミスの<br/>ハイブリッド構成が注目されていますが。"
+    System->>User: Play audio response
+
+    Note over User,Response: Exchange 3
+    User->>System: Hold button, speak Japanese
+    System->>STT: Raw audio
+    STT->>System: "ええ、その通りです。開発環境は<br/>AWS上に構築していますが、<br/>本番環境ではプライバシーの観点から<br/>オンプレミスのGPUクラスターを<br/>使用しています。"
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges],<br/>targetLanguage: "ja"<br/>}
+    Response->>System: "プライバシーを重視する姿勢は<br/>重要ですよね。規制対応の面で<br/>何か課題はありますか？特に<br/>個人情報保護法の改正への対応は<br/>どのようにお考えですか？"
+    System->>User: Play audio response
+
+    Note over User,Response: Exchange 4
+    User->>System: Hold button, speak Japanese
+    System->>STT: Raw audio
+    STT->>System: "はい、その点については社内の<br/>法務チームと密に連携を取りながら、<br/>データの取り扱いに関する<br/>ガイドラインを策定しています。"
+    System->>Response: {<br/>transcribedText,<br/>history: [previous exchanges],<br/>targetLanguage: "ja"<br/>}
+    Response->>System: "素晴らしい取り組みですね。<br/>ところで、来週渋谷でAIスタートアップの<br/>ミートアップがあるのですが、<br/>ご存知でしょうか？"
+    System->>User: Play audio response
+
+    Note over System,Response: Conversation naturally flows between<br/>technical, business, and networking topics
