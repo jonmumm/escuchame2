@@ -1,0 +1,37 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "escuchame"
+main = "dist/index.js"
+compatibility_date = "2024-09-25"
+
+assets = { directory = "./public" }
+
+[define]
+"process.env.REMIX_DEV_ORIGIN" = "'http://127.0.0.1:8002'"
+"process.env.REMIX_DEV_SERVER_WS_PORT" = "8002"
+
+[vars]
+ACTOR_KIT_HOST = "escuchame.jonathanrmumm.workers.dev"
+
+[[durable_objects.bindings]]
+name = "REMIX"
+class_name = "Remix"
+
+[[durable_objects.bindings]]
+name = "USER"
+class_name = "User"
+
+[[durable_objects.bindings]]
+name = "THREAD"
+class_name = "Thread"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Remix", "User", "Thread"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"                                       # i.e. available in your Worker on env.DB
+database_name = "kitchencraft-prod"
+database_id = "e52d01dd-13f8-46d4-ade8-5c4dca128179"

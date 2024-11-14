@@ -1,0 +1,161 @@
+name: 'Storybook Tests'
+on: push
+
+# Add these permission settings
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+          npm install @rollup/rollup-linux-x64-gnu @rollup/rollup-linux-x64-musl --save-optional
+          npm install @swc/core-linux-x64-gnu @swc/core-linux-x64-musl --save-optional
+          npm install @esbuild/linux-x64 --save-optional
+          npm rebuild rollup @swc/core esbuild
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      
+      - name: Build and Test Storybook
+        env:
+          DEBUG_PRINT_LIMIT: 10000
+          NODE_ENV: production
+        run: |
+          ROLLUP_NATIVE_PATH="$(pwd)/node_modules/@rollup/rollup-linux-x64-gnu/rollup.linux-x64-gnu.node" npm run build-storybook --quiet
+          mkdir -p coverage/storybook
+          npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
+            "npx http-server storybook-static --port 6006 --silent" \
+            "npx wait-on tcp:127.0.0.1:6006 && npm run test-storybook -- --maxWorkers=2 --testTimeout=60000 --coverage --coverageDirectory=coverage/storybook"
+
+      - name: Upload coverage reports to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage/storybook/
+          flags: storybook
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+        
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-coverage
+          path: coverage/storybook/
+          if-no-files-found: warn
+
+      - name: Generate Coverage Badge
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              // Try to read from the coverage directory
+              const coverageFiles = fs.readdirSync('coverage/storybook');
+              console.log('Coverage directory contents:', coverageFiles);
+              
+              let percentage = 0;
+              
+              // Look for coverage-storybook.json first
+              if (fs.existsSync('coverage/storybook/coverage-storybook.json')) {
+                const rawData = JSON.parse(fs.readFileSync('coverage/storybook/coverage-storybook.json', 'utf8'));
+                console.log('Raw coverage data:', JSON.stringify(rawData, null, 2));
+                
+                // Calculate total coverage from all files
+                let totalStatements = 0;
+                let coveredStatements = 0;
+                
+                Object.values(rawData).forEach((fileData) => {
+                  if (typeof fileData === 'object' && fileData !== null) {
+                    const statements = fileData.s || {};
+                    totalStatements += Object.keys(statements).length;
+                    coveredStatements += Object.values(statements).filter(v => v > 0).length;
+                  }
+                });
+                
+                percentage = totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0;
+                
+              } else if (fs.existsSync('coverage/storybook/lcov.info')) {
+                // Parse lcov.info if json not available
+                const lcovContent = fs.readFileSync('coverage/storybook/lcov.info', 'utf8');
+                const lines = lcovContent.split('\n');
+                let totalLines = 0;
+                let coveredLines = 0;
+                
+                lines.forEach(line => {
+                  if (line.startsWith('LF:')) totalLines += parseInt(line.slice(3));
+                  if (line.startsWith('LH:')) coveredLines += parseInt(line.slice(3));
+                });
+                
+                percentage = totalLines > 0 ? (coveredLines / totalLines) * 100 : 0;
+              } else {
+                throw new Error(`No coverage files found. Available files: ${coverageFiles.join(', ')}`);
+              }
+              
+              // Round to 2 decimal places
+              percentage = Math.round(percentage * 100) / 100;
+              
+              const badgeColor = percentage > 80 ? 'green' 
+                : percentage > 60 ? 'yellow'
+                : 'red';
+              
+              const badge = {
+                schemaVersion: 1,
+                label: 'coverage',
+                message: `${percentage}%`,
+                color: badgeColor
+              };
+              
+              fs.writeFileSync('coverage-badge.json', JSON.stringify(badge));
+              console.log('Successfully generated coverage badge with percentage:', percentage);
+              
+            } catch (error) {
+              console.error('Error generating coverage badge:', error);
+              throw error;
+            }
+
+      - name: Upload Coverage Badge
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: coverage-badge.json
+
+      - name: Prepare badge for deployment
+        if: success()
+        run: |
+          mkdir -p coverage/badges
+          mv coverage-badge.json coverage/badges/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'coverage/badges'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
