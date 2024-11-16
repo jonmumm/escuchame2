@@ -2,10 +2,10 @@ import { expect } from "@storybook/jest";
 import type { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "@storybook/testing-library";
 import { withActorKit } from "actor-kit/storybook";
-import { withRemix } from "../test/remix-stub";
-import { UserContext } from "../app/user.context";
-import type { UserMachine } from "../app/user.machine";
-import Homepage from "../app/routes/_index";
+import { withRemix } from "../../test/remix-stub";
+import { UserContext } from "../../app/user.context";
+import type { UserMachine } from "../../app/user.machine";
+import Homepage from "../../app/routes/_index";
 
 const defaultParameters = {
   remix: {
