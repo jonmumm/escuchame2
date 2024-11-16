@@ -1,4 +1,5 @@
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+// import { createOpenAI } from "@ai-sdk/openai";
 import { trace } from "@opentelemetry/api";
 import { DeepPartial, streamObject } from "ai";
 import { nanoid } from "nanoid";
@@ -28,6 +29,18 @@ export type ModelObservableEvent<
       id: string;
       data: TOutput;
     };
+
+const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const CLOUDFLARE_GATEWAY_ID = process.env.CLOUDFLARE_GATEWAY_ID;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+
+const google = createGoogleGenerativeAI({
+  apiKey: GOOGLE_API_KEY,
+  // Only use Cloudflare gateway if both IDs are present
+  ...(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_GATEWAY_ID ? {
+    baseURL: `https://gateway.ai.cloudflare.com/v1/${CLOUDFLARE_ACCOUNT_ID}/${CLOUDFLARE_GATEWAY_ID}/google-ai-studio`,
+  } : {}),
+});
 
 export abstract class StructuredObjectModel<
   TInput,
@@ -88,6 +101,7 @@ export abstract class StructuredObjectModel<
           data: finalObject,
         });
       } catch (error) {
+        console.error("Error:", error);
         subject.error({
           type: "$$xstate.error",
           error: new Error(getErrorMessage(error)),

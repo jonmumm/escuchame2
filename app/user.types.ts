@@ -14,7 +14,9 @@ import {
 
 export type UserClientEvent = z.infer<typeof UserClientEventSchema>;
 export type UserServiceEvent = z.infer<typeof UserServiceEventSchema>;
-export type UserInput = WithActorKitInput<z.infer<typeof UserInputPropsSchema>> & {
+export type UserInput = WithActorKitInput<
+  z.infer<typeof UserInputPropsSchema>
+> & {
   id: string;
   caller: { id: string };
   storage: DurableObjectStorage;
@@ -22,16 +24,15 @@ export type UserInput = WithActorKitInput<z.infer<typeof UserInputPropsSchema>> 
 
 export type UserPublicContext = {
   id: string;
-  ownerId: string;
   createdAt: number;
-  lastMessageAt: number;
+  scenarioIds: string[];
 };
 
 export type UserPrivateContext = {
   userIds: string[];
 };
 
-export type UserPersistedContext = {
+export type UserServerContext = {
   public: UserPublicContext;
   private: Record<string, UserPrivateContext>;
 };
@@ -40,4 +41,5 @@ export type UserEvent = (
   | WithActorKitEvent<UserClientEvent, "client">
   | WithActorKitEvent<UserServiceEvent, "service">
   | ActorKitSystemEvent
-) & BaseActorKitEvent<EnvWithDurableObjects>;
+) &
+  BaseActorKitEvent<EnvWithDurableObjects>;

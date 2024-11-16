@@ -14,14 +14,18 @@ export default meta;
 type Story = StoryObj<typeof ChatScreen>;
 
 // Create a more realistic waveform pattern
-const generateWaveform = (length: number = 100) => {
+const generateWaveform = (length: number = 64) => {
   return Array.from({ length }, (_, i) => {
-    // Create a bell curve-like pattern
-    const x = (i / length) * 2 - 1;
-    const amplitude = Math.exp(-x * x * 2) * 0.8 + Math.random() * 0.2;
-    return amplitude;
+    // Create a more natural looking waveform
+    const position = i / length;
+    const frequency = 2; // Adjust for more/less waves
+    const amplitude = Math.sin(position * Math.PI * frequency);
+    return 0.3 + Math.abs(amplitude) * 0.7; // Ensures values between 0.3 and 1.0
   });
 };
+
+// Make sure the sample audio URL exists
+const SAMPLE_AUDIO = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10..."; // Use your base64 audio
 
 const sampleMessages = [
   {
@@ -30,8 +34,8 @@ const sampleMessages = [
     timestamp: new Date("2024-03-10T10:00:00"),
     audio: {
       id: "audio-1",
-      audioUrl: "/sample-greeting.mp3",
-      duration: 8, // 8 seconds
+      audioUrl: SAMPLE_AUDIO,
+      duration: 8,
       waveform: generateWaveform(),
     },
   },
@@ -41,8 +45,8 @@ const sampleMessages = [
     timestamp: new Date("2024-03-10T10:01:00"),
     audio: {
       id: "audio-2",
-      audioUrl: "/sample-greeting.mp3",
-      duration: 6, // 6 seconds
+      audioUrl: SAMPLE_AUDIO,
+      duration: 6,
       waveform: generateWaveform(),
     },
   },

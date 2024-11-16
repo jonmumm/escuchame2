@@ -1,4 +1,5 @@
 import { catchError } from "@jonmumm/utils/catchError";
+import { invariant } from "@jonmumm/utils/invariant";
 import type {
   ActorKitEmittedEvent,
   ActorServer,
@@ -15,7 +16,6 @@ import {
   fromCallback,
   InputFrom,
 } from "xstate";
-import { invariant } from "./lib/utils";
 
 // Helper type to convert kebab-case to SNAKE_CASE
 type KebabToSnake<S extends string> = string extends S

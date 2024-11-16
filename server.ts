@@ -1,5 +1,5 @@
 export { Remix } from "./app/remix.server";
-export { Thread } from "./app/thread.server";
+export { Scenario } from "./app/scenario.server";
 export { User } from "./app/user.server";
 
 import { logDevReady } from "@remix-run/cloudflare";

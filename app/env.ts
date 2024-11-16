@@ -1,6 +1,6 @@
 import type { ActorServer } from "actor-kit";
 import type { Remix } from "../server";
-import { ThreadServer } from "./thread.server";
+import { ScenarioServer } from "./scenario.server";
 import type { UserServer } from "./user.server";
 
 declare module "@remix-run/cloudflare" {
@@ -15,7 +15,7 @@ declare module "@remix-run/cloudflare" {
 export interface Env {
   REMIX: DurableObjectNamespace<Remix>;
   USER: DurableObjectNamespace<UserServer>;
-  THREAD: DurableObjectNamespace<ThreadServer>;
+  SCENARIO: DurableObjectNamespace<ScenarioServer>;
   SESSION_JWT_SECRET: string;
   ACTOR_KIT_SECRET: string;
   ACTOR_KIT_HOST: string;

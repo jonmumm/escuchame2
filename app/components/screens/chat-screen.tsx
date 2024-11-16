@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Drawer } from "vaul";
 import { cn } from "~/lib/utils";
 import { PlayCircle, PauseCircle, Mic, MicOff, Globe2, ChevronDown } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { RecordingService } from "~/lib/recording-service";
 
 interface AudioMessage {
   id: string;
@@ -33,6 +34,9 @@ interface ChatScreenProps {
   onPauseAudio?: (audioId: string) => void;
   defaultIsPromptOpen?: boolean;
   onStartConversation?: (prompt: string, nativeLanguage: string, targetLanguage: string) => void;
+  scenarioId: string;
+  onAudioChunk?: (chunk: string, scenarioId: string) => void;
+  onAudioComplete?: (scenarioId: string) => void;
 }
 
 const languages = [
@@ -80,11 +84,16 @@ const getRandomSuggestion = () => {
   return conversationSuggestions[randomIndex];
 };
 
-// Sample audio URLs - these should be actual MP3 files in your public directory
-const SAMPLE_AUDIO_URLS = {
-  greeting: "https://audio-samples.github.io/samples/mp3/spanish-greeting.mp3",
-  question: "https://audio-samples.github.io/samples/mp3/spanish-question.mp3",
-  response: "https://audio-samples.github.io/samples/mp3/spanish-response.mp3",
+// This is a very short beep sound encoded in base64
+const SAMPLE_AUDIO_BASE64 = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Hh4NtVkdUc4eQkIdyWDpHX3qNmpqVdVEzPl17laeqpJNkNyQ6YIqjt7i0nXhPLDFTcZOqvL67rI1hQkdpgZuuvcC9taJ6WFRuk6Szv8PBvLOkhGxkfJqsu8PFxcC4rJB5aXeRpLXBxsfFv7mklHt2jZ+xuMPKysjEv7SdiYN+k6i3xMvOzcnGwLKdjoaEnbPAyc/S0s7LxbyphYeHnrXDzdPX2dXRy8CujIyLobrH0dfb3dnW0ce3mZKPqL/M1drd3t3a1s7CpZmVqsTR2d7g4eDe2tHIsp2dscrW3eHj5OPh3tfQvaeisczY3+Pm5+bl4t3VyLOqsc7a4OXo6eno5eDazL23wtPd5Onr7Ozr6OPe1MW+yNjj6e3v8PDv7Ofe2s/Hztvm7PDy8/Py8Ovk39nT2uPq8PL09fX19PDq5ODb3+jv8/b4+Pj49/Xw6+fj5u3z9/n6+vr6+fb08e3q7fP3+vv8/Pz8+/n39PLw8/j6/P3+/v7+/fz7+Pb1+Pr8/f7//////v79/Pr5+vv9/v///////////v7+/v7+/v////////////7+/v79/f39/f7+//////7+/v79/f39/f39/v7+//7+/v79/f39/f39/f7+/v7+/v79/f39/f39/f39/v7+/v7+/f39/f39/f39/f7+/v7+/v39/f39/f39/f3+/v7+/v79/f39/f39/f39/v7+/v7+/f39/f39/f39/f7+/v7+/v39/f39/f39/f3+/v7+/v79/f39/f39/f39/v7+/v7+/f39/f39/f39/f7+/v7+/v39/f39/f39/f3+/v7+/v79/f39/f39/f39/v7+/v7+/f39/f39/f39/f7+/v7+/v39/f39/f39/f0=";
+
+const generateWaveform = (length: number = 64) => {
+  return Array.from({ length }, (_, i) => {
+    const position = i / length;
+    const frequency = 2;
+    const amplitude = Math.sin(position * Math.PI * frequency);
+    return 0.3 + Math.abs(amplitude) * 0.7;
+  });
 };
 
 export const ChatScreen = ({
@@ -93,6 +102,9 @@ export const ChatScreen = ({
   onPauseAudio,
   defaultIsPromptOpen = true,
   onStartConversation,
+  scenarioId,
+  onAudioChunk,
+  onAudioComplete,
 }: ChatScreenProps) => {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -108,38 +120,36 @@ export const ChatScreen = ({
   const [progress, setProgress] = useState<Record<string, number>>({});
   const animationFrameRef = useRef<number>();
 
+  const recordingService = useRef<RecordingService>();
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingTimer = useRef<NodeJS.Timeout>();
+
   // Ensure AI starts the conversation with audio
-  const messages = useMemo(() => {
-    if (externalMessages.length === 0) {
+  const [messages, setMessages] = useState(externalMessages);
+
+  const displayMessages = useMemo(() => {
+    if (messages.length === 0) {
+      const initialWaveform = generateWaveform(64);
       return [{
         id: "initial-message",
         author: { id: "ai-1", isAI: true },
         timestamp: new Date(),
         audio: {
           id: "audio-initial",
-          audioUrl: SAMPLE_AUDIO_URLS.greeting,
-          duration: 8, // 8 seconds for greeting
-          waveform: Array(50).fill(0).map(() => 0.5 + Math.random() * 0.5),
+          audioUrl: SAMPLE_AUDIO_BASE64,
+          duration: 1,
+          waveform: initialWaveform,
         },
       }];
     }
-    return externalMessages.map((msg, index) => ({
-      ...msg,
-      audio: {
-        ...msg.audio,
-        // Alternate between different sample audios
-        audioUrl: msg.author.isAI 
-          ? SAMPLE_AUDIO_URLS.question 
-          : SAMPLE_AUDIO_URLS.response,
-      }
-    }));
-  }, [externalMessages]);
+    return messages;
+  }, [messages]);
 
   // Initialize audio elements when messages change
   useEffect(() => {
     const newAudioElements: Record<string, HTMLAudioElement> = {};
     
-    messages.forEach(message => {
+    displayMessages.forEach(message => {
       if (!audioElements[message.audio.id]) {
         const audio = new Audio();
         audio.src = message.audio.audioUrl;
@@ -176,11 +186,24 @@ export const ChatScreen = ({
         audio.src = "";
       });
     };
-  }, [messages]);
+  }, [displayMessages]);
+
+  useEffect(() => {
+    recordingService.current = new RecordingService();
+    return () => {
+      // Cleanup
+      if (recordingTimer.current) {
+        clearInterval(recordingTimer.current);
+      }
+    };
+  }, []);
 
   const handlePlayPause = async (audioId: string) => {
     const audioElement = audioElements[audioId];
-    if (!audioElement) return;
+    if (!audioElement) {
+      console.error('No audio element found for id:', audioId);
+      return;
+    }
 
     try {
       if (currentlyPlaying === audioId) {
@@ -195,48 +218,52 @@ export const ChatScreen = ({
         }
 
         audioElement.currentTime = 0; // Reset to start
-        await audioElement.play();
-        setCurrentlyPlaying(audioId);
-        onPlayAudio?.(audioId);
+        const playPromise = audioElement.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            setCurrentlyPlaying(audioId);
+            onPlayAudio?.(audioId);
+          }).catch(error => {
+            console.error("Error playing audio:", error);
+          });
+        }
       }
     } catch (error) {
-      console.error("Error playing audio:", error);
+      console.error("Error in handlePlayPause:", error);
     }
   };
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = useCallback((seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const renderWaveform = (messageId: string, waveform?: number[]) => {
-    if (!waveform) return null;
-    
-    const currentProgress = progress[messageId] || 0;
-    const progressIndex = Math.floor(waveform.length * currentProgress);
-    
+  const renderAudioControls = (messageId: string, duration: number) => {
     return (
-      <div className="flex items-center h-full gap-0.5">
-        {waveform.map((amplitude, i) => (
-          <div
-            key={i}
-            className={cn(
-              "w-0.5 rounded-full transition-all duration-200",
-              i <= progressIndex && currentlyPlaying === messageId
-                ? "opacity-100"
-                : "opacity-50",
-              currentlyPlaying === messageId
-                ? i <= progressIndex
-                  ? "bg-blue-600"
-                  : "bg-current"
-                : "bg-current"
-            )}
-            style={{
-              height: `${Math.max(15, amplitude * 32)}px`,
-            }}
-          />
-        ))}
+      <div className="flex-1 flex items-center">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-10 w-10 rounded-full",
+            "transition-colors duration-200",
+            currentlyPlaying === messageId
+              ? "text-blue-600 bg-blue-100 hover:bg-blue-200"
+              : "hover:bg-blue-100"
+          )}
+          onClick={() => handlePlayPause(messageId)}
+        >
+          {currentlyPlaying === messageId ? (
+            <PauseCircle className="h-6 w-6" />
+          ) : (
+            <PlayCircle className="h-6 w-6" />
+          )}
+        </Button>
+        
+        <span className="text-sm tabular-nums ml-2 text-gray-500">
+          {formatDuration(duration)}
+        </span>
       </div>
     );
   };
@@ -260,6 +287,106 @@ export const ChatScreen = ({
     const suggestion = getRandomSuggestion();
     setPrompt(`I want to practice ${suggestion.title.toLowerCase()}: ${suggestion.description}`);
   };
+
+  const startRecording = async () => {
+    try {
+      await recordingService.current?.startRecording();
+      setIsRecording(true);
+      
+      // Start timer
+      const startTime = Date.now();
+      recordingTimer.current = setInterval(() => {
+        setRecordingDuration(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      const audio = await recordingService.current?.stopRecording();
+      setIsRecording(false);
+      
+      if (recordingTimer.current) {
+        clearInterval(recordingTimer.current);
+        setRecordingDuration(0);
+      }
+
+      if (audio) {
+        console.log('Recording completed, waveform:', audio.waveform); // Debug log
+        
+        // Create a new message for local display
+        const newMessage = {
+          id: `msg-${Date.now()}`,
+          author: { id: 'user-1', isAI: false },
+          timestamp: new Date(),
+          audio: {
+            id: `audio-${Date.now()}`,
+            audioUrl: audio.url,
+            duration: recordingDuration || 1,
+            waveform: audio.waveform, // Make sure this is being passed correctly
+          },
+        };
+
+        // Set up audio element for playback
+        const audioElement = new Audio();
+        audioElement.src = audio.url;
+        audioElement.preload = "auto";
+        
+        audioElement.addEventListener("timeupdate", () => {
+          setProgress(prev => ({
+            ...prev,
+            [newMessage.audio.id]: audioElement.currentTime / audioElement.duration
+          }));
+        });
+        
+        audioElement.addEventListener("ended", () => {
+          setCurrentlyPlaying(null);
+          setProgress(prev => ({
+            ...prev,
+            [newMessage.audio.id]: 0
+          }));
+        });
+        
+        // Add to UI state
+        setAudioElements(prev => ({
+          ...prev,
+          [newMessage.audio.id]: audioElement
+        }));
+        
+        console.log('Adding new message:', newMessage); // Debug log
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+
+        // Send to server
+        if (onAudioChunk && onAudioComplete) {
+          const base64 = audio.base64;
+          const chunkSize = 32 * 1024;
+          for (let i = 0; i < base64.length; i += chunkSize) {
+            const chunk = base64.slice(i, i + chunkSize);
+            onAudioChunk(chunk, scenarioId);
+          }
+          onAudioComplete(scenarioId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+    }
+  };
+
+  // Initialize messages with waveform data
+  useEffect(() => {
+    // Add waveform data to any messages that don't have it
+    const messagesWithWaveforms = externalMessages.map(message => ({
+      ...message,
+      audio: {
+        ...message.audio,
+        waveform: message.audio.waveform || generateWaveform(64)
+      }
+    }));
+    setMessages(messagesWithWaveforms);
+  }, [externalMessages]);
 
   return (
     <div className="h-[100dvh] bg-gradient-to-b from-gray-50 to-white">
@@ -465,7 +592,7 @@ export const ChatScreen = ({
       {/* Messages */}
       <div className="pt-16 pb-24">
         <div className="max-w-2xl mx-auto p-4 space-y-4">
-          {messages.map((message) => (
+          {displayMessages.map((message) => (
             <div
               key={message.id}
               className={cn(
@@ -487,57 +614,7 @@ export const ChatScreen = ({
                 {message.author.isAI ? "AI" : "You"}
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-10 w-10 rounded-full shrink-0",
-                  "transition-colors duration-200",
-                  message.author.isAI
-                    ? currentlyPlaying === message.audio.id
-                      ? "text-blue-600 bg-blue-100 hover:bg-blue-200"
-                      : "hover:bg-blue-100"
-                    : currentlyPlaying === message.audio.id
-                      ? "text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                      : "hover:bg-indigo-100"
-                )}
-                onClick={() => handlePlayPause(message.audio.id)}
-              >
-                {currentlyPlaying === message.audio.id ? (
-                  <PauseCircle className="h-6 w-6" />
-                ) : (
-                  <PlayCircle className="h-6 w-6" />
-                )}
-              </Button>
-              
-              <div className="flex-1 min-w-0">
-                <div className={cn(
-                  "h-8 rounded-full overflow-hidden",
-                  "transition-colors duration-200",
-                  message.author.isAI
-                    ? currentlyPlaying === message.audio.id
-                      ? "text-blue-600"
-                      : "text-blue-900/50"
-                    : currentlyPlaying === message.audio.id
-                      ? "text-indigo-600"
-                      : "text-indigo-900/50"
-                )}>
-                  {renderWaveform(message.audio.id, message.audio.waveform)}
-                </div>
-              </div>
-              
-              <span className={cn(
-                "text-sm tabular-nums",
-                message.author.isAI
-                  ? currentlyPlaying === message.audio.id
-                    ? "text-blue-600"
-                    : "text-blue-900/40"
-                  : currentlyPlaying === message.audio.id
-                    ? "text-indigo-600"
-                    : "text-indigo-900/40"
-              )}>
-                {formatDuration(message.audio.duration)}
-              </span>
+              {renderAudioControls(message.audio.id, message.audio.duration)}
             </div>
           ))}
         </div>
@@ -555,7 +632,7 @@ export const ChatScreen = ({
                   ? "bg-red-500 hover:bg-red-600 animate-pulse"
                   : "bg-blue-500 hover:bg-blue-600"
               )}
-              onClick={() => setIsRecording(!isRecording)}
+              onClick={isRecording ? stopRecording : startRecording}
             >
               {isRecording ? (
                 <MicOff className="h-6 w-6" />
@@ -571,7 +648,9 @@ export const ChatScreen = ({
               <div className="absolute left-4 right-4 bottom-24 p-4 bg-white rounded-lg shadow-lg border flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-sm font-medium">Recording...</span>
-                <span className="text-sm text-gray-500 ml-auto">0:00</span>
+                <span className="text-sm text-gray-500 ml-auto">
+                  {formatDuration(recordingDuration)}
+                </span>
               </div>
             )}
           </div>
