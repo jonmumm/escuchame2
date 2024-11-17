@@ -1,15 +1,64 @@
 import { useNavigate } from "@remix-run/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { atom } from "nanostores";
+import { useStore } from "@nanostores/react";
 import { Header } from "~/components/scenario/header";
 import { MessagesArea } from "~/components/scenario/messages-area";
 import { RecordingControls } from "~/components/scenario/recording-controls";
 import { ScenarioContext } from "~/scenario.context";
 import { RecordingService } from "~/lib/recording-service";
+import { useCallback, useEffect, useRef } from "react";
 
+// Main component
 export function ScenarioView() {
   const navigate = useNavigate();
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
+
+  return (
+    <div className="flex flex-col h-[100dvh] bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <ScenarioHeader onBack={() => navigate("/")} />
+      <ScenarioMessages />
+      <ScenarioRecordingArea />
+    </div>
+  );
+}
+
+// Header component
+function ScenarioHeader({ onBack }: { onBack: () => void }) {
+  const scenarioDetails = ScenarioContext.useSelector((state) => ({
+    type: state.public.type,
+    title: state.public.title,
+    prompt: state.public.prompt,
+    nativeLanguage: state.public.nativeLanguage,
+    targetLanguage: state.public.targetLanguage,
+  }));
+
+  return <Header scenarioDetails={scenarioDetails} onBack={onBack} />;
+}
+
+// Messages component
+function ScenarioMessages() {
+  const messages = ScenarioContext.useSelector((state) => state.public.messages);
+  const isGeneratingResponse = ScenarioContext.useMatches({
+    IsGenerating: "True",
+  });
+
+  return (
+    <MessagesArea
+      messages={messages}
+      isGeneratingResponse={isGeneratingResponse}
+    />
+  );
+}
+
+// Recording area component with internal stores
+function ScenarioRecordingArea() {
+  // Internal stores
+  const isRecording$ = useRef(atom<boolean>(false)).current;
+  const recordingDuration$ = useRef(atom<number>(0)).current;
+  
+  // Local state from stores
+  const isRecording = useStore(isRecording$);
+  const recordingDuration = useStore(recordingDuration$);
+  
   const recordingServiceRef = useRef<RecordingService | null>(null);
   const send = ScenarioContext.useSend();
 
@@ -33,42 +82,22 @@ export function ScenarioView() {
         () => {
           send({ type: "AUDIO_CHUNK_COMMIT" });
           send({ type: "GENERATE_RESPONSE" });
-          setIsRecording(false);
-          setRecordingDuration(0);
+          isRecording$.set(false);
+          recordingDuration$.set(0);
         }
       );
-      setIsRecording(success);
+      isRecording$.set(success);
     } else {
       recordingServiceRef.current.stopRecording();
     }
-  }, [send]);
+  }, [send, isRecording$, recordingDuration$]);
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <Header
-        scenarioDetails={ScenarioContext.useSelector((state) => ({
-          type: state.public.type,
-          title: state.public.title,
-          prompt: state.public.prompt,
-          nativeLanguage: state.public.nativeLanguage,
-          targetLanguage: state.public.targetLanguage,
-        }))}
-        onBack={() => navigate("/")}
-      />
-
-      <MessagesArea
-        messages={ScenarioContext.useSelector((state) => state.public.messages)}
-        isGeneratingResponse={ScenarioContext.useMatches({
-          IsGenerating: "True",
-        })}
-      />
-
-      <RecordingControls
-        isRecording={isRecording}
-        recordingDuration={recordingDuration}
-        onRecordingChange={handleRecordingChange}
-        onDurationChange={setRecordingDuration}
-      />
-    </div>
+    <RecordingControls
+      isRecording={isRecording}
+      recordingDuration={recordingDuration}
+      onRecordingChange={handleRecordingChange}
+      onDurationChange={(duration) => recordingDuration$.set(duration)}
+    />
   );
 }
