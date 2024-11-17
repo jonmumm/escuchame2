@@ -12,10 +12,35 @@ import {
   ScenarioServiceEventSchema,
 } from "./scenario.schemas";
 
+export interface Message {
+  id: string;
+  author: {
+    id: string;
+    isAI?: boolean;
+  };
+  timestamp: Date;
+  audio: {
+    id: string;
+    audioUrl: string;
+    duration: number;
+  };
+}
+
+export type ScenarioType = "template" | "custom" | "lucky";
+
 export type ScenarioPublicContext = {
+  id: string;
   ownerId: string;
   createdAt: number;
   lastMessageAt: number;
+  type: ScenarioType;
+  title?: string;
+  description?: string;
+  prompt?: string;
+  nativeLanguage: string;
+  targetLanguage: string;
+  messages: Message[];
+  isGeneratingResponse: boolean;
 };
 
 export type ScenarioPrivateContext = {
@@ -31,18 +56,9 @@ export type ScenarioEvent = (
 ) &
   BaseActorKitEvent<EnvWithDurableObjects>;
 
-// export type UserEvent = (
-//   | WithActorKitEvent<UserClientEvent, "client">
-//   | WithActorKitEvent<UserServiceEvent, "service">
-//   | ActorKitSystemEvent
-// ) &
-//   BaseActorKitEvent<EnvWithDurableObjects>;
-
 export type ScenarioInputProps = z.infer<typeof ScenarioInputPropsSchema>;
 
-export type ScenarioInput = WithActorKitInput<
-  z.infer<typeof ScenarioInputPropsSchema>
-> & {
+export type ScenarioInput = WithActorKitInput<ScenarioInputProps> & {
   id: string;
   caller: { id: string };
   storage: DurableObjectStorage;
@@ -51,4 +67,12 @@ export type ScenarioInput = WithActorKitInput<
 export type ScenarioServerContext = {
   public: ScenarioPublicContext;
   private: Record<string, ScenarioPrivateContext>;
+};
+
+export type ScenarioState = {
+  Initialization: {};
+  Idle: {};
+  Generating: {};
+  Recording: {};
+  Error: { error: string };
 };

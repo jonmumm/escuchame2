@@ -52,6 +52,13 @@ export default {
           "5": "hsl(var(--chart-5))",
         },
       },
+      keyframes: {
+        ellipsis: {
+          '0%': { content: '"."' },
+          '33%': { content: '".."' },
+          '66%': { content: '"..."' },
+        },
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
