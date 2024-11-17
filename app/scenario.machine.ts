@@ -1,27 +1,15 @@
-import { ActorKitStateMachine, BaseActorKitEvent, EnvWithDurableObjects } from "actor-kit";
+import { ActorKitStateMachine } from "actor-kit";
 import { setup } from "xstate";
 import {
   ScenarioEvent,
   ScenarioInput,
   ScenarioServerContext,
-  ScenarioType,
 } from "./scenario.types";
-
-// Define internal events with required Actor Kit properties
-type InternalEvent = BaseActorKitEvent<EnvWithDurableObjects> & (
-  | { type: "READY" }
-  | { type: "START_GENERATING" }
-  | { type: "START_RECORDING" }
-  | { type: "GENERATED" }
-  | { type: "STOP_RECORDING" }
-  | { type: "ERROR" }
-  | { type: "RETRY" }
-);
 
 export const scenarioMachine = setup({
   types: {
     context: {} as ScenarioServerContext,
-    events: {} as ScenarioEvent | InternalEvent,
+    events: {} as ScenarioEvent,
     input: {} as ScenarioInput,
   },
   actors: {},
@@ -29,72 +17,45 @@ export const scenarioMachine = setup({
 }).createMachine({
   id: "scenario",
   type: "parallel",
-  context: ({ input }: { input: ScenarioInput }) => ({
-    public: {
-      id: input.id,
-      ownerId: input.caller.id,
-      createdAt: Date.now(),
-      lastMessageAt: Date.now(),
-      type: "template" as ScenarioType,
-      nativeLanguage: "English",
-      targetLanguage: "Spanish",
-      messages: [],
-      isGeneratingResponse: true,
-    },
-    private: {
-      [input.caller.id]: {
-        userIds: ["system"],
+  context: ({ input }: { input: ScenarioInput }) => {
+    console.log("input", input);
+    console.log("input", input);
+    console.log("input", input);
+    console.log("input", input);
+    console.log("input", input);
+    console.log("input", input);
+    console.log("input", input);
+    return {
+      public: {
+        id: input.id,
+        ownerId: input.caller.id,
+        createdAt: Date.now(),
+        lastMessageAt: Date.now(),
+        type: input.type,
+        nativeLanguage: input.nativeLanguage,
+        targetLanguage: input.targetLanguage,
+        prompt: input.prompt,
+        // title:   // todo: set this from the prompt (if custom), or explicitly pass it up from client (if selection)
+        messages: [],
       },
-    },
-  }),
+      private: {},
+    };
+  },
   states: {
-    Initialization: {
-      on: {
-        READY: {
-          target: "Idle",
-        },
+    Initialization: {},
+    Idle: {},
+    IsGenerating: {
+      initial: "True",
+      states: {
+        True: {},
+        False: {},
       },
     },
-    Idle: {
-      on: {
-        START_GENERATING: {
-          target: "Generating",
-        },
-        START_RECORDING: {
-          target: "Recording",
-        },
-      },
-    },
-    Generating: {
-      on: {
-        GENERATED: {
-          target: "Idle",
-        },
-        ERROR: {
-          target: "Error",
-        },
-      },
-    },
-    Recording: {
-      on: {
-        STOP_RECORDING: {
-          target: "Generating",
-        },
-        ERROR: {
-          target: "Error",
-        },
-      },
-    },
-    Error: {
-      on: {
-        RETRY: {
-          target: "Idle",
-        },
-      },
-    },
+    Recording: {},
+    Error: {},
   },
 }) satisfies ActorKitStateMachine<
-  ScenarioEvent | InternalEvent,
+  ScenarioEvent,
   ScenarioInput,
   ScenarioServerContext
 >;

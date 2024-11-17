@@ -10,7 +10,7 @@ interface Message {
     id: string;
     isAI?: boolean;
   };
-  timestamp: Date;
+  timestamp: number;
   audio: {
     id: string;
     audioUrl: string;

@@ -1,17 +1,11 @@
 import { z } from "zod";
+import { StartConvserationPayloadSchema } from "./schemas";
 
 export const UserClientEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("CREATE_SCENARIO"),
     scenarioId: z.string(),
-    payload: z.object({
-      id: z.string(),
-      type: z.enum(['template', 'custom', 'lucky']),
-      nativeLanguage: z.string(),
-      targetLanguage: z.string(),
-      prompt: z.string(),
-      timestamp: z.string()
-    })
+    payload: StartConvserationPayloadSchema,
   }),
 ]);
 

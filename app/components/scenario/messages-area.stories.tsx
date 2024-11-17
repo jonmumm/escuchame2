@@ -20,7 +20,7 @@ const sampleMessages = [
   {
     id: "msg-1",
     author: { id: "ai-1", isAI: true },
-    timestamp: new Date("2024-03-10T10:00:00"),
+    timestamp: 1710064800000, // 2024-03-10T10:00:00.000Z
     audio: {
       id: "audio-1",
       audioUrl: SAMPLE_AUDIO,
@@ -30,7 +30,7 @@ const sampleMessages = [
   {
     id: "msg-2",
     author: { id: "user-1", isAI: false },
-    timestamp: new Date("2024-03-10T10:01:00"),
+    timestamp: 1710064860000, // 2024-03-10T10:01:00.000Z
     audio: {
       id: "audio-2",
       audioUrl: SAMPLE_AUDIO,
@@ -40,7 +40,7 @@ const sampleMessages = [
   {
     id: "msg-3",
     author: { id: "ai-1", isAI: true },
-    timestamp: new Date("2024-03-10T10:02:00"),
+    timestamp: 1710064920000, // 2024-03-10T10:02:00.000Z
     audio: {
       id: "audio-3",
       audioUrl: SAMPLE_AUDIO,

@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === "development") {
   logDevReady(build);
 }
 
-const router = createActorKitRouter<Env>(["user"]);
+const router = createActorKitRouter<Env>(["user", "scenario"]);
 
 export default class Worker extends WorkerEntrypoint<Env> {
   fetch(request: Request): Promise<Response> | Response {

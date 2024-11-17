@@ -4,6 +4,8 @@ import { z } from "zod";
 export const LanguageCode = z.enum(["es", "ja", "en"]);
 export const Role = z.enum(["assistant", "user"]);
 
+export const ScenarioTypeSchema = z.enum(["template", "custom", "lucky"]);
+
 // Message schema for conversation history
 export const Message = z.object({
   role: Role,
@@ -87,3 +89,12 @@ export type ConversationState = z.infer<typeof ConversationState>;
 export type SpeechToTextResult = z.infer<typeof SpeechToTextResult>;
 export type TextToSpeechRequest = z.infer<typeof TextToSpeechRequest>;
 export type ApiError = z.infer<typeof ApiError>;
+
+export const StartConvserationPayloadSchema = z.object({
+  id: z.string(),
+  type: z.enum(["template", "custom", "lucky"]),
+  nativeLanguage: z.string(),
+  targetLanguage: z.string(),
+  prompt: z.string(),
+  timestamp: z.string(),
+});

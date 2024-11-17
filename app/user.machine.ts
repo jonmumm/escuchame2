@@ -3,6 +3,8 @@ import type { ActorKitStateMachine, Caller } from "actor-kit";
 import { assign, DoneActorEvent, fromPromise, setup } from "xstate";
 import { z } from "zod";
 import { Env } from "./env";
+import { ScenarioInputProps } from "./scenario.types";
+import { StartConversationPayload } from "./types";
 import {
   type UserEvent,
   type UserInput,
@@ -57,22 +59,25 @@ export const userMachine: ActorKitStateMachine<
       async ({
         input,
       }: {
-        input: { env: Env; scenarioId: string; caller: Caller };
+        input: {
+          env: Env;
+          caller: Caller;
+          payload: StartConversationPayload;
+        };
       }) => {
-        const id = input.env.SCENARIO.idFromName(input.scenarioId);
-        const stub = input.env.SCENARIO.get(id);
+        const scenarioId = input.payload.id;
+        const durableObjectId = input.env.SCENARIO.idFromName(scenarioId);
+        const stub = input.env.SCENARIO.get(durableObjectId);
         await stub.spawn({
           actorType: "scenario",
-          actorId: input.scenarioId,
+          actorId: scenarioId,
           caller: {
             type: "client",
             id: input.caller.id,
           },
-          input: {
-            id: input.scenarioId,
-          },
+          input: input.payload satisfies ScenarioInputProps,
         });
-        return { scenarioId: input.scenarioId };
+        return { scenarioId };
       }
     ),
   },
@@ -138,6 +143,7 @@ export const userMachine: ActorKitStateMachine<
                 env: event.env as Env,
                 scenarioId: event.scenarioId,
                 caller: event.caller,
+                payload: event.payload,
               };
             },
             onDone: {
