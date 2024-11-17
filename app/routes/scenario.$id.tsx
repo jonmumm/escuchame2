@@ -6,9 +6,9 @@ import {
 } from "@remix-run/cloudflare";
 import { useLoaderData, useParams } from "@remix-run/react";
 import { createAccessToken, createActorFetch } from "actor-kit/server";
+import { ScenarioView } from "~/components/scenario/scenario-view";
 import { ScenarioContext } from "~/scenario.context";
 import { ScenarioMachine } from "~/scenario.machine";
-import { ScenarioView } from "~/components/scenario/scenario-view";
 
 export const meta: MetaFunction = () => {
   return [{ title: "Escuchame - Conversation" }];
@@ -33,7 +33,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     fetchScenario({
       actorId: id,
       accessToken,
-      input: {},
+      input: {}, // no input because it's guaranteed to be spawned ahead of time in user actor with the input
     })
   );
 

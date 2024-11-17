@@ -7,6 +7,7 @@ import { StateValueFrom } from "xstate";
 import { ScenarioContext } from "../../scenario.context";
 import type { ScenarioMachine } from "../../scenario.machine";
 import { ScenarioView } from "./scenario-view";
+import { expect, fn } from "@storybook/test";
 
 // Sample audio data (base64 encoded short beep)
 const SAMPLE_AUDIO = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10..."; // Use actual base64 audio
@@ -311,4 +312,70 @@ export const Recording: Story = {
     const recordButton = await canvas.findByRole("button", { name: /start recording/i });
     await userEvent.click(recordButton);
   },
+};
+
+// Test recording event sequence
+export const RecordingEventSequence: Story = {
+  play: async ({ canvasElement, mount }) => {
+    const sendSpy = fn();
+    const mockClient = createActorKitMockClient<ScenarioMachine>({
+      initialSnapshot: {
+        public: {
+          ...createDefaultContext("test-123"),
+          type: "template",
+          title: "At the Café",
+          prompt: "Practice ordering drinks and food at a coffee shop",
+          nativeLanguage: "English",
+          targetLanguage: "Spanish",
+          messages: [],
+        },
+        private: defaultPrivateContext,
+        value: {
+          Initialization: {},
+          Idle: {},
+          IsGenerating: "False",
+          Recording: {},
+          Error: {},
+        },
+      },
+      onSend: sendSpy,
+    });
+
+    // Mount the component with the mock client
+    await mount(
+      <ScenarioContext.ProviderFromClient client={mockClient}>
+        <ScenarioView />
+      </ScenarioContext.ProviderFromClient>
+    );
+
+    const canvas = within(canvasElement);
+    
+    // Start recording
+    const recordButton = await canvas.findByRole("button", {
+      name: /start recording/i,
+    });
+    await userEvent.click(recordButton);
+
+    // Wait a bit to collect some audio chunks
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Stop recording
+    await userEvent.click(recordButton);
+
+    // Wait for final events
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify event sequence
+    const eventTypes = sendSpy.mock.calls.map(call => call[0].type);
+    
+    // Verify we got some audio chunks
+    expect(eventTypes.filter(t => t === "AUDIO_CHUNK_APPEND").length).toBeGreaterThan(0);
+    
+    // Verify the final events are in order
+    const finalEvents = eventTypes.slice(-2);
+    expect(finalEvents).toEqual([
+      "AUDIO_CHUNK_COMMIT",
+      "GENERATE_RESPONSE"
+    ]);
+  }
 };
